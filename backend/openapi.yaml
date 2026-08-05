@@ -1,0 +1,647 @@
+openapi: 3.1.0
+info:
+  title: WorkClub API
+  version: 1.1.0
+  description: |
+    Multi-tenant API for agency client work, projects, tasks, time, proposals,
+    invoices, teams, notifications and the restricted client portal.
+  license:
+    name: AGPL-3.0-only
+    identifier: AGPL-3.0-only
+servers:
+  - url: http://localhost:8888/api
+    description: Local development
+tags:
+  - name: System
+  - name: Authentication
+  - name: Clients
+  - name: Projects
+  - name: Tasks
+  - name: Time
+  - name: Billing
+  - name: Proposals
+  - name: Team
+  - name: Workspace
+  - name: Notifications
+  - name: Portal
+  - name: Audit
+paths:
+  /health:
+    get:
+      tags: [System]
+      security: []
+      operationId: health
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /health/live:
+    get:
+      tags: [System]
+      security: []
+      operationId: liveness
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /health/ready:
+    get:
+      tags: [System]
+      security: []
+      operationId: readiness
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '503': { $ref: '#/components/responses/Error' }
+  /auth/login:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginInput' }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSession' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/register-workspace:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: registerWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterInput' }
+      responses:
+        '201': { $ref: '#/components/responses/AuthSession' }
+        '409': { $ref: '#/components/responses/Error' }
+  /auth/accept-invite:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: acceptInvite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, name, password]
+              properties:
+                token: { type: string }
+                name: { type: string }
+                password: { type: string, format: password }
+      responses:
+        '201': { $ref: '#/components/responses/AuthSession' }
+        '410': { $ref: '#/components/responses/Error' }
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: refreshSession
+      description: Rotates the HttpOnly refresh cookie and returns a short-lived access token.
+      responses:
+        '200': { $ref: '#/components/responses/AuthSession' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/request-password-reset:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202': { $ref: '#/components/responses/Success' }
+  /auth/reset-password:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, format: password }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSession' }
+        '410': { $ref: '#/components/responses/Error' }
+  /auth/verify-email:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/AuthSession' }
+        '410': { $ref: '#/components/responses/Error' }
+  /auth/resend-verification:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: resendVerification
+      responses:
+        '202': { $ref: '#/components/responses/Success' }
+  /auth/me:
+    get:
+      tags: [Authentication]
+      operationId: currentSession
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Error' }
+  /auth/sessions:
+    get:
+      tags: [Authentication]
+      operationId: listSessions
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/sessions/{sessionId}:
+    delete:
+      tags: [Authentication]
+      operationId: revokeSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      security: []
+      operationId: logout
+      description: Revokes the refresh session represented by the HttpOnly cookie and clears it.
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/logout-all:
+    post:
+      tags: [Authentication]
+      operationId: logoutAll
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /dashboard:
+    get:
+      tags: [Workspace]
+      operationId: dashboard
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /client:
+    get:
+      tags: [Clients]
+      operationId: listClients
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+    post:
+      tags: [Clients]
+      operationId: createClient
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /client/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Clients]
+      operationId: getClient
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+    patch:
+      tags: [Clients]
+      operationId: updateClient
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Clients]
+      operationId: archiveClient
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /project:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      description: Members receive only projects where they are a team member.
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+    post:
+      tags: [Projects]
+      operationId: createProject
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /project/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Projects]
+      operationId: getProject
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    patch:
+      tags: [Projects]
+      operationId: updateProject
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Projects]
+      operationId: archiveProject
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /task:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      description: Members receive only tasks assigned to them.
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+    post:
+      tags: [Tasks]
+      operationId: createTask
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /task/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    patch:
+      tags: [Tasks]
+      operationId: updateTask
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Tasks]
+      operationId: archiveTask
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /task/{id}/move:
+    patch:
+      tags: [Tasks]
+      operationId: moveTask
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /task/{id}/comments:
+    post:
+      tags: [Tasks]
+      operationId: addTaskComment
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /timeentry/start:
+    post:
+      tags: [Time]
+      operationId: startTimer
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /timeentry/{id}/stop:
+    patch:
+      tags: [Time]
+      operationId: stopTimer
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /timeentry/manual:
+    post:
+      tags: [Time]
+      operationId: createManualTime
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /timeentry/weekly:
+    get:
+      tags: [Time]
+      operationId: weeklyTimesheet
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /timeentry/running:
+    get:
+      tags: [Time]
+      operationId: runningTimer
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /timeentry/billable:
+    get:
+      tags: [Time]
+      operationId: uninvoicedBillableTime
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /invoice:
+    get:
+      tags: [Billing]
+      operationId: listInvoices
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+    post:
+      tags: [Billing]
+      operationId: createInvoice
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /invoice/from-time:
+    post:
+      tags: [Billing]
+      operationId: invoiceTrackedTime
+      description: Atomically reserves uninvoiced billable entries before creating the invoice.
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /invoice/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Billing]
+      operationId: getInvoice
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    patch:
+      tags: [Billing]
+      operationId: updateInvoice
+      description: Enforces draft → sent/void, sent → paid/overdue/void, and overdue → paid/void transitions.
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Billing]
+      operationId: voidInvoice
+      x-workclub-roles: [owner]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /proposal:
+    get:
+      tags: [Proposals]
+      operationId: listProposals
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+    post:
+      tags: [Proposals]
+      operationId: createProposal
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /proposal/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Proposals]
+      operationId: getProposal
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    patch:
+      tags: [Proposals]
+      operationId: updateProposal
+      description: Enforces draft → sent and sent → accepted/declined/expired transitions.
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+    delete:
+      tags: [Proposals]
+      operationId: archiveProposal
+      x-workclub-roles: [owner, manager]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { $ref: '#/components/responses/Error' }
+  /team:
+    get:
+      tags: [Team]
+      operationId: listTeam
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /team/invite:
+    post:
+      tags: [Team]
+      operationId: inviteUser
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+  /team/invite/{inviteId}:
+    delete:
+      tags: [Team]
+      operationId: revokeInvite
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /team/user/{userId}:
+    delete:
+      tags: [Team]
+      operationId: revokeUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/ObjectId' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /team/portal-access:
+    get:
+      tags: [Team, Portal]
+      operationId: listPortalAccess
+      x-workclub-roles: [owner]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /workspace:
+    get:
+      tags: [Workspace]
+      operationId: getWorkspace
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    patch:
+      tags: [Workspace]
+      operationId: updateWorkspace
+      x-workclub-roles: [owner, manager]
+      requestBody: { $ref: '#/components/requestBodies/JsonObject' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /notification:
+    get:
+      tags: [Notifications]
+      operationId: listNotifications
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+  /notification/{id}/read:
+    patch:
+      tags: [Notifications]
+      operationId: readNotification
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /portal:
+    get:
+      tags: [Portal]
+      operationId: clientPortal
+      x-workclub-roles: [client]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /audit:
+    get:
+      tags: [Audit]
+      operationId: listAuditEvents
+      x-workclub-roles: [owner]
+      responses:
+        '200': { $ref: '#/components/responses/Paginated' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/ObjectId' }
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Search:
+      name: search
+      in: query
+      schema: { type: string, maxLength: 100 }
+  requestBodies:
+    JsonObject:
+      required: true
+      content:
+        application/json:
+          schema: { type: object, additionalProperties: true }
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+    Paginated:
+      description: Paginated successful operation
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessEnvelope'
+              - type: object
+                properties:
+                  meta: { $ref: '#/components/schemas/Pagination' }
+    AuthSession:
+      description: Authentication succeeded
+      headers:
+        Set-Cookie:
+          description: Rotating HttpOnly refresh cookie
+          schema: { type: string }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SuccessEnvelope' }
+    Error:
+      description: Request failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ObjectId:
+      type: string
+      pattern: '^[a-fA-F0-9]{24}$'
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+    RegisterInput:
+      type: object
+      additionalProperties: false
+      required: [workspaceName, name, email, password]
+      properties:
+        workspaceName: { type: string, minLength: 2, maxLength: 80 }
+        name: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email }
+        password: { type: string, format: password, minLength: 10 }
+    SuccessEnvelope:
+      type: object
+      required: [success, result]
+      properties:
+        success: { const: true }
+        result: {}
+    ErrorEnvelope:
+      type: object
+      required: [success, message]
+      properties:
+        success: { const: false }
+        message: { type: string }
+        details: {}
+    Pagination:
+      type: object
+      required: [page, limit, total]
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+security:
+  - bearerAuth: []

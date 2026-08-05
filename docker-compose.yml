@@ -1,0 +1,89 @@
+services:
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8.0-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8888
+      MONGO_URI: mongodb://mongo:27017/workclub
+      REDIS_URL: redis://redis:6379
+      QUEUE_MODE: redis
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.docker}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      REFRESH_TOKEN_TTL_DAYS: 30
+      COOKIE_SECURE: "false"
+      REQUIRE_EMAIL_VERIFICATION: "false"
+      FRONTEND_ORIGIN: http://localhost:5173
+      APP_URL: http://localhost:5173
+      TRUST_PROXY: "true"
+      LOG_LEVEL: info
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    command: ["node", "dist/worker.js"]
+    environment:
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongo:27017/workclub
+      REDIS_URL: redis://redis:6379
+      QUEUE_MODE: redis
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.docker}
+      FRONTEND_ORIGIN: http://localhost:5173
+      APP_URL: http://localhost:5173
+      COOKIE_SECURE: "false"
+      REQUIRE_EMAIL_VERIFICATION: "false"
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    depends_on:
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_SOURCE_URL: /LICENSE.txt
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  mongo-data:
+  redis-data:
