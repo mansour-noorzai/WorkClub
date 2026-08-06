@@ -4,7 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8888/api";
+const baseURL = import.meta.env.VITE_API_URL || "/api";
 let accessToken: string | null = null;
 let refreshPromise: Promise<string> | null = null;
 

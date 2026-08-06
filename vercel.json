@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.ts": {
       "runtime": "@vercel/node"
@@ -7,8 +9,16 @@
   },
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/api",
       "dest": "api/index.ts"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
