@@ -1,20 +1,18 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/index.ts": {
-      "runtime": "@vercel/node"
+  "cleanUrls": true,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
-  },
+  ],
   "routes": [
     {
-      "src": "/api",
-      "dest": "api/index.ts"
-    },
-    {
-      "src": "/api/(.*)",
-      "dest": "api/index.ts"
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
