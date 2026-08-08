@@ -3,8 +3,9 @@ import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from "axios";
+import { getApiUrl } from "../config";
 
-const baseURL = import.meta.env.VITE_API_URL || "/api";
+const baseURL = getApiUrl();
 let accessToken: string | null = null;
 let refreshPromise: Promise<string> | null = null;
 
